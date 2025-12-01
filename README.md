@@ -8,14 +8,11 @@ A comprehensive framework for predicting gene expression changes from combinator
 
 1. [Overview](#overview)
 2. [Installation & Setup](#installation--setup)
-3. [Quick Start](#quick-start)
-4. [Detailed Workflow](#detailed-workflow)
-5. [Function Reference](#function-reference)
-6. [Data Format](#data-format)
-7. [Evaluation Metrics](#evaluation-metrics)
-8. [Output Files](#output-files)
-9. [Usage Examples](#usage-examples)
-10. [References](#references)
+3. [Detailed Workflow](#detailed-workflow)
+4. [Data Format](#data-format)
+5. [Evaluation Metrics](#evaluation-metrics)
+6. [Output Files](#output-files)
+7. [References](#references)
 
 ---
 

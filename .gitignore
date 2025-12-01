@@ -1,5 +1,7 @@
 data/
-  *.h5ad
-  *.pkl
-  *.pickle
-  *.csv
+*.h5ad
+*.pkl
+*.pickle
+*.csv
+papers/
+*.pdf
