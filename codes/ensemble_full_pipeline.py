@@ -302,6 +302,93 @@ class scLAMBDAWrapper:
         self.model.load_pretrain()
         self.fitted = True
         print(f"scLAMBDA model loaded from {model_path}")
+    
+    def load_pretrained_sclambda_with_device(self, model_or_path, adata_path: str = None,
+                                gene_embeddings_path: str = None, multi_gene: bool = True,
+                                device: str = 'cpu'):
+        """
+        Load pre-trained scLAMBDA model with explicit device mapping.
+        Accepts either a pre-loaded checkpoint or a path to model directory.
+
+        args:
+            model_or_path: Either path string to model directory OR pre-loaded checkpoint dict
+            adata_path: Path to h5ad file (needed if not already loaded)
+            gene_embeddings_path: Path to gene embeddings (needed if not already loaded)
+            multi_gene: Whether model was trained for multi-gene perturbations
+            device: Device to map model to ('cpu', 'mps', or 'cuda')
+        """
+        print(f"Loading scLAMBDA model with device mapping to: {device}")
+
+        # Check if model_or_path is a pre-loaded checkpoint or a path
+        is_checkpoint = isinstance(model_or_path, dict)
+
+        if is_checkpoint:
+            print("Using pre-loaded checkpoint")
+            checkpoint = model_or_path
+            # We still need the model_path for initialization, but we won't load from it
+            # Create a dummy path - scLAMBDA needs this for structure
+            model_path = "/tmp/sclambda_dummy"
+        else:
+            print(f"Will load checkpoint from: {model_or_path}")
+            model_path = model_or_path
+            checkpoint = None
+
+        # Load gene embeddings separately
+        if self.gene_embeddings is None and gene_embeddings_path is not None:
+            if gene_embeddings_path.endswith('.pkl') or gene_embeddings_path.endswith('.pickle'):
+                with open(gene_embeddings_path, 'rb') as f:
+                    self.gene_embeddings = pickle.load(f)
+            elif gene_embeddings_path.endswith('.npy'):
+                self.gene_embeddings = np.load(gene_embeddings_path, allow_pickle=True).item()
+            print(f"Loaded {len(self.gene_embeddings)} gene embeddings")
+
+        # Load only a minimal subset of cells for model initialization
+        if self.adata is None and adata_path is not None:
+            print("Loading minimal dataset for model initialization...")
+            adata_full = sc.read_h5ad(adata_path)
+            print(f"Full dataset: {adata_full.n_obs} cells")
+
+            # Take only 500 cells for initialization
+            n_init_cells = min(500, adata_full.n_obs)
+            self.adata = adata_full[:n_init_cells, :].copy()
+
+            # Make sure there's a column called condition
+            if 'perturbation' in self.adata.obs.columns:
+                self.adata.obs['condition'] = self.adata.obs['perturbation']
+
+            del adata_full
+            print(f"Using {self.adata.n_obs} cells for initialization")
+        elif self.adata is None:
+            raise ValueError("Must provide adata_path or call load_data_and_embeddings first")
+
+        # Data split required for scLAMBDA model initialization
+        self.adata, split = sclambda.utils.data_split(self.adata, split_type='all_train', seed=0)
+
+        # Initialize model
+        print("Initializing scLAMBDA model architecture...")
+        self.model = sclambda.model.Model(
+            self.adata,
+            self.gene_embeddings,
+            model_path=model_path,
+            multi_gene=multi_gene
+        )
+
+        # Load pretrained weights
+        if is_checkpoint:
+            # Use pre-loaded checkpoint
+            print("Loading pre-loaded checkpoint into model...")
+            self.model.vae.load_state_dict(checkpoint)
+        else:
+            # Load from file with device mapping
+            print(f"Loading checkpoint from {model_path}/ckpt.pth with map_location={device}...")
+            checkpoint_path = f"{model_path}/ckpt.pth"
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device(device))
+            self.model.vae.load_state_dict(checkpoint)
+
+        self.model.vae.to(device)
+
+        self.fitted = True
+        print(f"scLAMBDA model loaded on device: {device}")
         
     def predict(self, perturbations: list, return_type: str = 'mean') -> np.ndarray:
         """

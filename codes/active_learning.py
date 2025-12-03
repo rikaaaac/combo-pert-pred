@@ -3,14 +3,13 @@ Active Learning Loop for Combinatorial Perturbation Prediction
 
 Selection strategies:
 - Random: Uniform sampling (baseline)
-- Uncertainty-only: α=1.0, β=0, γ=0
-- Synergy-only: α=0, β=1.0, γ=0  
-- Diversity-only: α=0, β=0, γ=1.0
-- Oracle-greedy: Select highest-error perturbations (upper bound)
+- Uncertainty: Model disagreement (epistemic uncertainty)
+- Synergy: GEARS-style GI scores
+- Diversity: Prefer underrepresented genes
 - Weighted: α*uncertainty + β*synergy + γ*diversity
 
 Synergy quantification:
-- GEARS-style GI score: 
+- GEARS-style GI score:
   GI = observed_AB - (ctrl + Δ_A + Δ_B)
 
 Interpretability:
@@ -157,7 +156,7 @@ class SHAPAnalyzer:
     
     def explain_uncertainty(self, X_samples: np.ndarray, 
                            n_background: int = 100,
-                           n_explain: int = 50) -> dict:
+                           n_explain: int = 3) -> dict:
         """
         identify genes that drive model uncertainty
         high SHAP value = perturbing this gene leads to high uncertainty
@@ -195,7 +194,7 @@ class SHAPAnalyzer:
     def explain_synergy(self, X_samples: np.ndarray,
                         gi_scorer: GeneticInteractionScorer,
                         n_background: int = 100,
-                        n_explain: int = 50) -> dict:
+                        n_explain: int = 3) -> dict:
         """
         identify hub genes - genes frequently involved in synergistic interactions.
         high SHAP value = perturbing this gene leads to high GI scores
@@ -435,24 +434,6 @@ class ActiveLearningLoop:
         
         return scores
     
-    def compute_oracle_scores(self, candidates: list, ground_truth: dict) -> np.ndarray:
-        """Oracle using ground truth (upper bound)."""
-        X_candidates = self._candidates_to_matrix(candidates)
-        pred_mean, _, _ = self.ensemble.predict_ensemble(X_candidates)
-        
-        scores = np.zeros(len(candidates))
-        
-        for i, (g1, g2) in enumerate(candidates):
-            pair = tuple(sorted([g1, g2]))
-            if pair in ground_truth:
-                true_expr = ground_truth[pair]
-                pred_expr = pred_mean[i]
-                scores[i] = np.mean((true_expr - pred_expr) ** 2)
-        
-        if scores.max() > scores.min():
-            scores = (scores - scores.min()) / (scores.max() - scores.min())
-        
-        return scores
     
     # ==========================================
     # Selection
@@ -463,48 +444,42 @@ class ActiveLearningLoop:
                                  alpha: float = 1.0,
                                  beta: float = 0.0,
                                  gamma: float = 0.0,
-                                 X_train: np.ndarray = None,
-                                 ground_truth: dict = None) -> list:
+                                 X_train: np.ndarray = None) -> list:
         """select next experiments."""
         n_select = min(n_select, len(candidates))
-        
+
         if strategy == 'random':
             selected_idx = np.random.choice(len(candidates), size=n_select, replace=False)
             return [(candidates[i][0], candidates[i][1], 0.0) for i in selected_idx]
-        
+
         elif strategy == 'uncertainty':
             scores = self.compute_uncertainty_scores(candidates)
-            
+
         elif strategy == 'synergy':
             scores = self.compute_synergy_scores(candidates)
-            
+
         elif strategy == 'diversity':
             return self._greedy_diversity_selection(candidates, n_select, X_train)
-            
-        elif strategy == 'oracle':
-            if ground_truth is None:
-                raise ValueError("Oracle requires ground_truth")
-            scores = self.compute_oracle_scores(candidates, ground_truth)
-            
+
         elif strategy == 'weighted':
             scores = np.zeros(len(candidates))
-            
+
             if alpha > 0:
                 scores += alpha * self.compute_uncertainty_scores(candidates)
             if beta > 0:
                 scores += beta * self.compute_synergy_scores(candidates)
             if gamma > 0:
                 scores += gamma * self.compute_diversity_scores(candidates, X_train=X_train)
-            
+
             total_weight = alpha + beta + gamma
             if total_weight > 0:
                 scores /= total_weight
-        
+
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
-        
+
         top_indices = np.argsort(scores)[-n_select:][::-1]
-        
+
         return [(candidates[i][0], candidates[i][1], scores[i]) for i in top_indices]
     
     def _greedy_diversity_selection(self, candidates: list, n_select: int,
@@ -628,8 +603,7 @@ class ActiveLearningLoop:
                 candidates, n_select_per_iter,
                 strategy=strategy,
                 alpha=alpha, beta=beta, gamma=gamma,
-                X_train=X_train,
-                ground_truth=ground_truth if strategy == 'oracle' else None
+                X_train=X_train
             )
             
             # add to training
@@ -668,7 +642,7 @@ class ActiveLearningLoop:
     
     def run_shap_analysis(self, X_combo: np.ndarray, 
                           n_background: int = 100,
-                          n_explain: int = 50):
+                          n_explain: int = 3):
         """Run SHAP analysis for uncertainty and synergy."""
 
         print("\n" + "="*60)
@@ -706,8 +680,6 @@ def compare_all_strategies(ensemble, X_train_init, y_train_init,
         'uncertainty': {'strategy': 'uncertainty'},
         'synergy': {'strategy': 'synergy'},
         'diversity': {'strategy': 'diversity'},
-        'oracle': {'strategy': 'oracle'},
-        'weighted_unc_syn': {'strategy': 'weighted', 'alpha': 0.5, 'beta': 0.5, 'gamma': 0.0},
         'weighted_all': {'strategy': 'weighted', 'alpha': 0.4, 'beta': 0.3, 'gamma': 0.3},
     }
 
@@ -777,14 +749,12 @@ def plot_strategy_comparison(results: dict, save_path: str = 'strategy_compariso
     
     colors = {
         'random': 'gray', 'uncertainty': 'blue', 'synergy': 'green',
-        'diversity': 'orange', 'oracle': 'red',
-        'weighted_unc_syn': 'purple', 'weighted_all': 'brown'
+        'diversity': 'orange', 'weighted_all': 'brown'
     }
-    
+
     linestyles = {
         'random': '--', 'uncertainty': '-', 'synergy': '-',
-        'diversity': '-', 'oracle': ':',
-        'weighted_unc_syn': '-.', 'weighted_all': '-.'
+        'diversity': '-', 'weighted_all': '-.'
     }
     
     for name, history in results.items():
@@ -912,7 +882,7 @@ if __name__ == "__main__":
     # SHAP
     print("\nRunning SHAP analysis...")
     al = ActiveLearningLoop(ensemble)
-    al.run_shap_analysis(ensemble.X_combo, n_background=100, n_explain=50)
+    al.run_shap_analysis(ensemble.X_combo, n_background=100, n_explain=3)
     al.plot_shap_results(RESULT_DIR)
 
     print(f"\nDone! All results saved to {RESULT_DIR}")

@@ -215,6 +215,56 @@ class Ensemble:
         
         self.fitted = True
         print("All models loaded!")
+    
+    def load_models_with_device(self,
+                  gears_model_dir: str,
+                  gears_data_path: str,
+                  sclambda_model_or_path,  # Can be either path string or pre-loaded checkpoint
+                  sclambda_adata_path: str,
+                  sclambda_embeddings_path: str,
+                  norman_data_path: str,
+                  device: str = 'cpu',
+                  gears_data_name: str = None):
+        """
+        Load all pre-trained models with explicit device mapping for cross-platform compatibility.
+
+        args:
+            gears_model_dir: Directory where GEARS model is saved
+            gears_data_path: GEARS data directory
+            sclambda_model_or_path: Either a path to model directory OR pre-loaded checkpoint dict
+            sclambda_adata_path: Path to adata for scLAMBDA
+            sclambda_embeddings_path: Path to gene embeddings .pkl file
+            norman_data_path: Path to Norman h5ad for baseline fitting
+            device: Device to map models to ('cpu', 'mps', or 'cuda')
+            gears_data_name: Dataset name for GEARS or None
+
+        """
+        print("Loading models with device mapping...")
+        print(f"Target device: {device}")
+
+        # load GEARS
+        self.gears_model.load_pretrained_gears(
+            model_dir=gears_model_dir,
+            data_path=gears_data_path,
+            data_name=gears_data_name
+        )
+
+        # load scLAMBDA with device mapping - handles both pre-loaded and path
+        self.sclambda_model.load_pretrained_sclambda_with_device(
+            model_or_path=sclambda_model_or_path,
+            adata_path=sclambda_adata_path,
+            gene_embeddings_path=sclambda_embeddings_path,
+            device=device
+        )
+
+        # load data for baselines
+        self.X_single, self.y_single, self.X_combo, self.y_combo, self.gene_names = \
+            self.data_processor.load_norman_data(norman_data_path)
+
+        self._fit_baselines()
+
+        self.fitted = True
+        print("All models loaded!")
         
     def _fit_baselines(self):
         """Fit additive and mean baseline models."""
