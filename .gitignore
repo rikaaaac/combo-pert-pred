@@ -1,16 +1,49 @@
+# Data files
 data/
 *.h5ad
 *.pkl
 *.pickle
 *.csv
+
+# Documentation
 papers/
 *.pdf
+
+# Code directories
 codes/*
-codes2/
-ensemble_results/diversity_heatmap.png
-ensemble_results/metrics.json
-active_learning_notebook.ipynb
-ensemble_notebook.ipynb
-ensemble.py
-active_learning_notebook.ipynb
-models/*.DS_Store
+!codes/README.md
+
+# codes2/ - ignore everything except specific files
+codes2/*
+!codes2/ensemble_add_vae.py
+!codes2/active_learning.py
+!codes2/README.md
+!codes2/ensemble_analyze.py
+
+# Results
+ensemble_results/
+active_learning_results/
+results/
+
+# Models
+models/*
+
+# Notebooks
+*.ipynb
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.py[cod]
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
