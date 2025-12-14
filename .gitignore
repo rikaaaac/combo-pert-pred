@@ -13,4 +13,4 @@ active_learning_notebook.ipynb
 ensemble_notebook.ipynb
 ensemble.py
 active_learning_notebook.ipynb
-models/*
+models/*.DS_Store
