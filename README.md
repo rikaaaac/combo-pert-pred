@@ -11,10 +11,7 @@ A framework for predicting gene expression changes from combinatorial genetic pe
 3. [Quick Start](#quick-start)
 4. [Detailed Workflow](#detailed-workflow)
 5. [Data Format](#data-format)
-6. [Evaluation Metrics](#evaluation-metrics)
-7. [Output Files](#output-files)
-8. [Best Practices](#best-practices)
-9. [References](#references)
+6. [Project Structure](#project-structure)
 
 ---
 

@@ -1,4 +1,4 @@
-# codes2/
+# scripts/
 
 Ensemble implementation for combinatorial perturbation prediction using Additive + VAE models.
 
