@@ -6,12 +6,8 @@ Acquisition strategies:
 - Uncertainty: Ensemble epistemic uncertainty
 - Synergy: GEARS-style genetic interaction scores
 - Diversity: Expression-space diversity
-- Weighted: α*uncertainty + β*synergy + γ*diversity
+- Weighted: a*uncertainty + b*synergy + c*diversity
 
-Architecture:
-- Reuses AdditiveVAEEnsemble from ensemble_add_vae.py
-- Iteratively refits models on expanding training set
-- Evaluates multiple acquisition strategies
 """
 
 import os

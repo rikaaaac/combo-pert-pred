@@ -1,9 +1,6 @@
 """
 Additive + VAE Ensemble for Combinatorial Perturbation Prediction
 
-Models:
-- Additive baseline: linear superposition of single-gene effects
-- VAE: probabilistic latent-variable model capturing nonlinear interactions
 """
 
 import numpy as np

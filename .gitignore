@@ -11,14 +11,16 @@ papers/
 
 # Code directories
 codes/*
-!codes/README.md
 
-# codes2/ - ignore everything except specific files
+# codes2/ 
 codes2/*
 !codes2/ensemble_add_vae.py
 !codes2/active_learning.py
-!codes2/README.md
 !codes2/ensemble_analyze.py
+!codes2/ensemble_results/gene_uncertainty.png
+!codes2/ensemble_results/model_comparison.png
+!codes2/ensemble_results/uncertainty_distribution.png
+!codes2/ensemble_results/uncertainty_vs_error.png
 
 # Results
 ensemble_results/
